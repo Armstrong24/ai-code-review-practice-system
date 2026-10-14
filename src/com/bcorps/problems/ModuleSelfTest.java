@@ -36,7 +36,9 @@ public final class ModuleSelfTest {
                 "Expected output is preserved");
         check(service.listProblems(Difficulty.MEDIUM, Category.SEARCHING).size() == 1,
                 "Combined filters work");
-        check(service.listProblems(Difficulty.HARD, null).isEmpty(), "Empty filters return empty list");
+        check(service.listProblems(Difficulty.MEDIUM, Category.OTHER).isEmpty(), "Empty filters return empty list");
+        check(service.listProblems(Difficulty.HARD, null).size() == 4, "Hard problems are in the bank");
+        check(SampleData.insertMissing(service) == 0, "Topping up a full bank adds nothing");
 
         // A separate service opens new connections to the same test database.
         ProblemService secondService = new ProblemService(new JdbcProblemRepository(database));
