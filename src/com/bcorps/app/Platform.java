@@ -55,7 +55,7 @@ public final class Platform {
         this.fileStorage = new FileStorageService(submissions);
         this.submissionService = new SubmissionService(problems, new EvaluationEngine(),
                 reviewService, submissions);
-        SampleData.insertIfEmpty(problems);
+        SampleData.insertMissing(problems);
     }
 
     /** The real app: a file database in ./data/codereview.mv.db. */
