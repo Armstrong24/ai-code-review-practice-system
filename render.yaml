@@ -6,7 +6,9 @@ services:
     plan: free
     healthCheckPath: /
     envVars:
-      - key: GEMINI_API_KEY      # optional: your Gemini key, enables AI review
+      - key: GROQ_API_KEY        # optional: Groq key, fastest AI review (tried first)
+        sync: false
+      - key: GEMINI_API_KEY      # optional: Gemini key, used if Groq is missing or fails
         sync: false
       - key: ADMIN_EMAILS        # your email; only these accounts can add/delete problems
         sync: false
