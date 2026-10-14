@@ -1,15 +1,22 @@
 # AI-Powered Code Review & Programming Practice System
 
-A Java desktop platform where students register, solve programming problems in Java,
+A Java platform where students register, solve programming problems in Java,
 get their code compiled and graded against hidden test cases, and receive AI feedback
 on their code. Progress, scores and a leaderboard are stored in an H2 database.
+
+It runs two ways:
+
+- **Website**: Jakarta Servlets on an embedded Jetty server with a browser UI (`run.bat web`)
+- **Desktop app**: Swing (`run.bat`)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Armstrong24/ai-code-review-practice-system)
 
 Group project by five members. Each module lives in its own package.
 
 ## How it works
 
 ```
-Student (Swing app, Member 1)
+Student (website or Swing app, Member 1)
    │  logs in, picks a problem, writes Java code, presses Submit
    ▼
 Problem bank (Member 2) ── gives the problem + sample AND hidden test cases
@@ -31,7 +38,7 @@ All modules share one H2 database file: `data/codereview.mv.db` (created on firs
 | 2 | Programming Problems & Test Cases | `com.bcorps.problems` | `Problem`, `TestCase`, `ProblemService`, `JdbcProblemRepository`, `ProblemFileService`, `Member2Main` |
 | 3 | Code Execution & Evaluation Engine | `com.bcorps.execution` | `CodeExecutor`, `TestCaseRunner`, `EvaluationEngine`, `EvaluationResult` |
 | 4 | AI Code Review & Feedback | `com.bcorps.review` | `CodeReviewer` (interface), `AICodeReviewer` (Gemini), `RuleBasedCodeReviewer`, `ReviewService` |
-| 5 | Progress, Database & Integration | `com.bcorps.progress`, `com.bcorps.database`, `com.bcorps.app` | `SubmissionDAO`, `ProgressService`, `DashboardService`, `LeaderboardService`, `DatabaseManager`, `Platform`, `SubmissionService` |
+| 5 | Progress, Database & Integration | `com.bcorps.progress`, `com.bcorps.database`, `com.bcorps.app`, `com.bcorps.web` | `SubmissionDAO`, `ProgressService`, `DashboardService`, `LeaderboardService`, `DatabaseManager`, `Platform`, `SubmissionService`, `WebServer` + servlets |
 
 ### Database tables (`DatabaseManager`)
 
@@ -43,19 +50,21 @@ All modules share one H2 database file: `data/codereview.mv.db` (created on firs
 ## Requirements
 
 - **JDK 17 or newer** (a full JDK, not just a JRE: the engine needs `javac` to compile submissions)
-- `lib/h2-2.5.252.jar` (included)
+- The jars in `lib/` (included): H2 database, Jetty 12 + Jakarta Servlet 6 API, SLF4J
 
 ## Run it
 
 **Windows**
 ```
-run.bat           student app
+run.bat web       website  ->  open http://localhost:8080
+run.bat           student desktop app
 run.bat admin     problem & test-case admin console (Member 2)
 run.bat test      run every self-test
 ```
 
 **macOS / Linux**
 ```
+sh run.sh web
 sh run.sh
 sh run.sh admin
 sh run.sh test
@@ -65,7 +74,49 @@ sh run.sh test
 Run `com.bcorps.app.Main` (add `admin` or `test` as a program argument if needed).
 If Eclipse shows a JRE error, right-click the project → Properties → Java Build Path → Libraries and choose your installed JDK (17+).
 
-On first start the app adds 5 demo problems with 24 test cases.
+On first start the app adds 5 demo problems with 24 test cases, and the website adds a
+demo login: **demo@codereview.app / demo1234** (the "Try the demo account" button).
+
+## Website
+
+| Page | Module | What it shows |
+|---|---|---|
+| Log in / Create account | 1 | Register, log in, demo account |
+| Dashboard | 5 | Solved, success rate, average score, level, recent submissions, per-difficulty stats |
+| Problems | 2 | Problem bank with difficulty / category filters and your status |
+| Problem page | 2, 3, 4 | Statement + sample cases, Java code editor, results per test (hidden ones masked), AI feedback |
+| Submissions | 5 | History; click one to see the code and feedback |
+| Leaderboard | 5 | Ranking by best score per problem |
+| Manage problems | 2 | Admins add problems with sample/hidden test cases, or delete them |
+| About the project | all | How the five modules connect |
+
+JSON API (all under `/api`, one servlet per module):
+
+- `AuthServlet` – `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`
+- `ProblemServlet` – `GET /problems`, `GET /problems/{id}` (sample cases only), `POST /problems`, `DELETE /problems/{id}`
+- `SubmissionServlet` – `POST /submissions`, `GET /submissions`, `GET /submissions/{id}`
+- `StatsServlet` – `GET /stats/dashboard`, `GET /stats/leaderboard`
+
+Website environment variables: `PORT` (default 8080), `GEMINI_API_KEY`, `ADMIN_EMAILS`
+(comma-separated; if empty every user can manage problems, fine locally), `JUDGE_THREADS`
+(programs run at once, default 2), `SECURE_COOKIES` (`true` behind HTTPS), `DEMO_ACCOUNT` (`false` to disable).
+
+## Live website (free, on Render)
+
+1. Sign in at render.com with your GitHub account.
+2. Click the **Deploy to Render** button at the top of this README (or New → Blueprint → pick this repo).
+3. When asked, fill in `ADMIN_EMAILS` with the email you'll register with, and optionally `GEMINI_API_KEY`.
+4. Click **Apply**. The first build takes about 5 minutes; Render then gives you a link like
+   `https://ai-code-review-practice-system.onrender.com`.
+
+Free-plan notes: the site sleeps after 15 minutes without visitors and takes about a minute
+to wake up, so open it once before a demo. The free disk is temporary, so accounts and
+submissions reset when the service restarts or redeploys (the demo problems and demo
+account are recreated automatically).
+
+**Security note:** submitted code runs in a separate JVM with a time limit, memory limit and
+output cap, inside a container as a non-root user, but it is not a full sandbox. That is fine
+for a class demo; a production judge would use isolated containers per submission.
 
 ## AI review setup (optional)
 
@@ -101,4 +152,5 @@ inputs/outputs, student names and emails are never sent.
 - **AI review (Member 4):** fixed response parsing that cut feedback short whenever the text contained `",`; requests now escape all characters correctly; added problem/test context, timeouts, and an offline fallback reviewer; API key sent in a header, not the URL.
 - **Leaderboard (Member 5):** ranks by best score per problem, so resubmitting the same problem cannot inflate rank. Current level now needs both a good average and enough problems solved.
 - **File handling (Member 2):** export/import the whole problem bank to a `.properties` file (admin menu options 9 and 10).
+- **Website (new):** servlets for every module, a browser UI, and Docker/Render files for a live link.
 - **Package names:** everything moved under `com.bcorps.*` (Member 4's and Member 5's `com.codereview` packages collided).
