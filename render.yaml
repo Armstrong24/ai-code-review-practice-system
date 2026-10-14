@@ -1,0 +1,16 @@
+# One-click deploy on Render (free plan). See README "Live website".
+services:
+  - type: web
+    name: ai-code-review-practice-system
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: GEMINI_API_KEY      # optional: your Gemini key, enables AI review
+        sync: false
+      - key: ADMIN_EMAILS        # your email; only these accounts can add/delete problems
+        sync: false
+      - key: SECURE_COOKIES
+        value: "true"
+      - key: JUDGE_THREADS       # free plan has 512 MB RAM: run one submission at a time
+        value: "1"
