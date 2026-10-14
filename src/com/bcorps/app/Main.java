@@ -7,6 +7,7 @@ import javax.swing.SwingUtilities;
 /**
  * Starts the AI-Powered Code Review & Programming Practice System.
  *
+ *   web        website (servlets on Jetty) at http://localhost:8080
  *   (no args)  student desktop app (Swing)
  *   admin      Member 2's console for managing problems and test cases
  *   test       runs every module's self-test
@@ -18,6 +19,7 @@ public final class Main {
     public static void main(String[] args) throws Exception {
         String mode = args.length == 0 ? "app" : args[0].toLowerCase();
         switch (mode) {
+            case "web" -> com.bcorps.web.WebServer.main(new String[0]);
             case "admin" -> com.bcorps.problems.Member2Main.main(new String[0]);
             case "test" -> {
                 com.bcorps.problems.ModuleSelfTest.main(new String[0]);
@@ -26,13 +28,13 @@ public final class Main {
             }
             case "app" -> {
                 if (GraphicsEnvironment.isHeadless()) {
-                    System.out.println("No display found. Try: admin  or  test");
+                    System.out.println("No display found. Try: web, admin or test");
                     return;
                 }
                 Platform platform = Platform.openDefault();
                 SwingUtilities.invokeLater(() -> new AICodeReviewSystem(platform).start());
             }
-            default -> System.out.println("Unknown option. Use no option, admin, or test.");
+            default -> System.out.println("Unknown option. Use web, admin, test, or no option.");
         }
     }
 }
