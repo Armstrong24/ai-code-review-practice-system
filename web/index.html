@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CodeReview AI · Programming Practice</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%234f46e5'/><text x='16' y='22' font-size='16' text-anchor='middle' fill='white' font-family='monospace'>&lt;/&gt;</text></svg>">
+  <link rel="stylesheet" href="vendor/codemirror/codemirror.min.css">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <!-- Login / register (Member 1) -->
+  <section id="auth" class="auth hidden">
+    <div class="auth-brand">
+      <div class="logo"><span class="logo-mark">&lt;/&gt;</span> CodeReview AI</div>
+      <h1>Practise Java.<br>Get graded instantly.<br>Learn from AI feedback.</h1>
+      <ul class="auth-points">
+        <li><span>1</span>Pick a problem from the bank</li>
+        <li><span>2</span>Write your solution in the browser</li>
+        <li><span>3</span>It runs against hidden test cases</li>
+        <li><span>4</span>AI explains your mistakes in plain words</li>
+      </ul>
+    </div>
+    <div class="auth-panel">
+      <div class="card auth-card">
+        <div class="tabs">
+          <button class="tab active" data-auth-tab="login">Log in</button>
+          <button class="tab" data-auth-tab="register">Create account</button>
+        </div>
+        <form id="login-form" class="form">
+          <label>Email<input name="email" type="email" autocomplete="email" required></label>
+          <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+          <p class="form-error" data-error></p>
+          <button class="btn primary block" type="submit">Log in</button>
+          <button class="btn ghost block" type="button" id="demo-login">Try the demo account</button>
+        </form>
+        <form id="register-form" class="form hidden">
+          <label>Full name<input name="name" autocomplete="name" maxlength="100" required></label>
+          <label>Email<input name="email" type="email" autocomplete="email" required></label>
+          <label>Password<input name="password" type="password" minlength="6" autocomplete="new-password" required>
+            <small>At least 6 characters</small></label>
+          <p class="form-error" data-error></p>
+          <button class="btn primary block" type="submit">Create account</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main app -->
+  <div id="app" class="shell hidden">
+    <aside class="sidebar">
+      <div class="logo"><span class="logo-mark">&lt;/&gt;</span> CodeReview AI</div>
+      <nav>
+        <a href="#/dashboard" data-nav="dashboard"><i>◧</i>Dashboard</a>
+        <a href="#/problems" data-nav="problems"><i>☰</i>Problems</a>
+        <a href="#/history" data-nav="history"><i>↺</i>Submissions</a>
+        <a href="#/leaderboard" data-nav="leaderboard"><i>★</i>Leaderboard</a>
+        <a href="#/manage" data-nav="manage" class="admin-only hidden"><i>✎</i>Manage problems</a>
+        <a href="#/about" data-nav="about"><i>◎</i>About the project</a>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="me">
+          <div class="avatar" id="me-avatar">?</div>
+          <div><strong id="me-name"></strong><small id="me-email"></small></div>
+        </div>
+        <button class="btn ghost small block" id="logout">Log out</button>
+      </div>
+    </aside>
+    <main id="view" class="view"></main>
+  </div>
+
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <button class="modal-close" aria-label="Close">×</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="vendor/codemirror/codemirror.min.js"></script>
+  <script src="vendor/codemirror/clike.min.js"></script>
+  <script src="vendor/codemirror/matchbrackets.min.js"></script>
+  <script src="vendor/codemirror/closebrackets.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
