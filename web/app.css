@@ -406,7 +406,7 @@ tr.me-row { background: var(--brand-soft); }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
 /* ---------- keep long AI answers inside their box ---------- */
-.solve > *, .result, .result-body, .result-body > *, .feedback, .feedback-body { min-width: 0; max-width: 100%; }
+.view, .solve > *, .result, .result-body, .result-body > *, .feedback, .feedback-body { min-width: 0; max-width: 100%; }
 .feedback-body { overflow-wrap: anywhere; word-break: break-word; }
 .feedback-body code { white-space: pre-wrap; overflow-wrap: anywhere; }
 .feedback-body pre { max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; }
