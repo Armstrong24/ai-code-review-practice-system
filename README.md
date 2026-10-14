@@ -4,6 +4,9 @@ A Java platform where students register, solve programming problems in Java,
 get their code compiled and graded against hidden test cases, and receive AI feedback
 on their code. Progress, scores and a leaderboard are stored in an H2 database.
 
+**🌐 Live demo: https://ai-code-review-practice-system.onrender.com**
+(demo login `demo@codereview.app` / `demo1234`; free hosting, so the first visit may take about a minute to wake up)
+
 It runs two ways:
 
 - **Website**: Jakarta Servlets on an embedded Jetty server with a browser UI (`run.bat web`)
@@ -102,6 +105,8 @@ Website environment variables: `PORT` (default 8080), `GROQ_API_KEY`, `GEMINI_AP
 (programs run at once, default 2), `SECURE_COOKIES` (`true` behind HTTPS), `DEMO_ACCOUNT` (`false` to disable).
 
 ## Live website (free, on Render)
+
+Running at **https://ai-code-review-practice-system.onrender.com**. Light, dark and system themes (switch at the bottom of the sidebar or top-right of the login page; the choice is remembered).
 
 1. Sign in at render.com with your GitHub account.
 2. Click the **Deploy to Render** button at the top of this README (or New → Blueprint → pick this repo).
