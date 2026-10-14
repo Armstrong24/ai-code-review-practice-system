@@ -40,6 +40,16 @@ public final class ReviewSelfTest {
         check(service.review(ReviewRequest.ofCode("class A {}")).contains("offline checker used"),
                 "Without a key the app falls back to the offline reviewer");
 
+        String groq = "{\"id\":\"x\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\","
+                + "\"content\":\"Use < not <=, e.g. \\\"i < n\\\".\"},\"finish_reason\":\"stop\"}]}";
+        check(GroqCodeReviewer.extractText(groq).equals("Use < not <=, e.g. \"i < n\"."),
+                "Groq response parser reads the full answer");
+
+        ReviewService chain = new ReviewService(java.util.List.of(new GroqCodeReviewer("", null),
+                new AICodeReviewer("", null)), new RuleBasedCodeReviewer());
+        check(chain.review(ReviewRequest.ofCode("class A {}")).contains("offline checker used"),
+                "Groq -> Gemini -> offline chain falls back when no key works");
+
         System.out.println("ALL " + checks + " REVIEW CHECKS PASSED.");
     }
 
