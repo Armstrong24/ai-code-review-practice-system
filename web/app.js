@@ -73,14 +73,80 @@ public class Main {
   // First lines of a Java stack trace are enough to see what went wrong.
   const shortError = (e) => String(e || '').split('\n').slice(0, 3).join('\n');
 
-  // Light formatting for feedback text: **bold**, `code`, headings and bullets.
-  function formatFeedback(text) {
-    return esc(text)
-      .replace(/^#{1,6}\s*(.+)$/gm, '<strong>$1</strong>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  // Small Markdown renderer for AI feedback: headings, lists, tables, code blocks,
+  // **bold**, *italic* and `code`. Everything is escaped first, so it is safe.
+  function inline(t) {
+    return t
       .replace(/`([^`\n]+)`/g, '<code>$1</code>')
-      .replace(/^\s*[*-]\s+/gm, '• ');
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>');
   }
+  function formatFeedback(text) {
+    const lines = esc(text || '').replace(/\r/g, '').split('\n');
+    const out = [];
+    let i = 0;
+    const isTableRow = (l) => /^\s*\|.*\|\s*$/.test(l);
+    const cells = (l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => inline(c.trim()));
+    while (i < lines.length) {
+      const line = lines[i];
+      if (/^\s*```/.test(line)) {
+        const code = [];
+        i++;
+        while (i < lines.length && !/^\s*```/.test(lines[i])) code.push(lines[i++]);
+        i++;
+        out.push(`<pre><code>${code.join('\n')}</code></pre>`);
+      } else if (/^\s*#{1,6}\s+/.test(line)) {
+        out.push(`<h4>${inline(line.replace(/^\s*#{1,6}\s+/, ''))}</h4>`); i++;
+      } else if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+        out.push('<hr>'); i++;
+      } else if (isTableRow(line) && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) {
+        const head = cells(line); i += 2;
+        const rows = [];
+        while (i < lines.length && isTableRow(lines[i])) rows.push(cells(lines[i++]));
+        out.push(`<table><thead><tr>${head.map((c) => `<th>${c}</th>`).join('')}</tr></thead><tbody>${
+          rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`);
+      } else if (/^\s*([*+-]|\d+[.)])\s+/.test(line)) {
+        const ordered = /^\s*\d/.test(line);
+        const items = [];
+        while (i < lines.length && /^\s*([*+-]|\d+[.)])\s+/.test(lines[i])) {
+          items.push(inline(lines[i].replace(/^\s*([*+-]|\d+[.)])\s+/, ''))); i++;
+        }
+        const tag = ordered ? 'ol' : 'ul';
+        out.push(`<${tag}>${items.map((t) => `<li>${t}</li>`).join('')}</${tag}>`);
+      } else if (!line.trim()) {
+        i++;
+      } else {
+        const para = [];
+        while (i < lines.length && lines[i].trim() && !/^\s*(```|#{1,6}\s|([*+-]|\d+[.)])\s|(-{3,}|\*{3,}|_{3,})\s*$)/.test(lines[i]) && !isTableRow(lines[i])) {
+          para.push(inline(lines[i++]));
+        }
+        if (!para.length) { para.push(inline(lines[i++])); }
+        out.push(`<p>${para.join('<br>')}</p>`);
+      }
+    }
+    return out.join('');
+  }
+
+  // ---------------------------------------------------------------- theme
+  const media = window.matchMedia('(prefers-color-scheme: dark)');
+  function applyTheme(choice) {
+    const dark = choice === 'dark' || (choice === 'system' && media.matches);
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    $$('[data-theme-set]').forEach((b) => {
+      const on = b.dataset.themeSet === choice;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+      b.setAttribute('role', 'radio');
+    });
+  }
+  const themeChoice = () => localStorage.getItem('theme') || 'system';
+  $$('[data-theme-set]').forEach((b) => b.addEventListener('click', () => {
+    localStorage.setItem('theme', b.dataset.themeSet);
+    applyTheme(b.dataset.themeSet);
+    if (state.editor) state.editor.refresh();
+  }));
+  media.addEventListener('change', () => { if (themeChoice() === 'system') applyTheme('system'); });
+  applyTheme(themeChoice());
 
   // ---------------------------------------------------------------- auth (Member 1)
   function showAuth() {
@@ -260,8 +326,9 @@ public class Main {
         </div>
         <div>
           <div class="card editor-card">
-            <div class="editor-bar"><span class="lang">Java</span>
-              <div style="display:flex;gap:8px">
+            <div class="editor-bar"><span class="lang">Main.java</span>
+              <div style="display:flex;gap:8px;align-items:center">
+                <span class="editor-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to submit</span>
                 <button class="btn ghost small" id="reset">Reset</button>
                 <button class="btn primary small" id="submit">Submit code</button>
               </div></div>
@@ -293,7 +360,7 @@ public class Main {
       if (button.disabled) return;
       button.disabled = true;
       button.innerHTML = '<span class="spinner"></span> Running…';
-      $('#result').innerHTML = `<div class="card pad result"><div class="empty">Compiling and running your code on ${p.totalTests} test cases, then asking ${esc(state.reviewer)} for feedback…</div></div>`;
+      $('#result').innerHTML = `<div class="card result"><div class="running"><span class="spinner dark"></span>Compiling and running your code on ${p.totalTests} test cases, then asking ${esc(state.reviewer)} for feedback…</div></div>`;
       try {
         const r = await api('/submissions', { method: 'POST', body: { problemId: p.id, code: getCode() } });
         $('#result').innerHTML = resultCard(r);
@@ -321,7 +388,7 @@ public class Main {
         ${r.tests.filter((t) => t.sample && t.status !== 'ACCEPTED').map((t) => `
           <div class="sample"><div><small>Expected</small><pre>${esc(t.expected)}</pre></div>
           <div><small>${t.actual ? 'Your output' : 'Error'}</small><pre>${esc(t.actual || shortError(t.error) || '(nothing)')}</pre></div></div>`).join('')}
-        <div class="feedback"><div class="feedback-head">✦ Feedback · ${esc(r.reviewer)}</div>
+        <div class="feedback"><div class="feedback-head"><span class="ai-badge">✦</span>AI feedback <small>· ${esc(r.reviewer)}</small></div>
           <div class="feedback-body">${formatFeedback(r.review)}</div></div>
       </div></div>`;
   }
@@ -348,7 +415,7 @@ public class Main {
       modal(`<h2>${esc(s.problemTitle)}</h2>
         <p>${pill(s.status)} <strong>${pct(s.score)}</strong> <small>· ${s.passed}/${s.total} tests · ${when(s.submittedAt)}</small></p>
         <pre class="code">${esc(s.code)}</pre>
-        <div class="feedback"><div class="feedback-head">✦ Feedback</div><div class="feedback-body">${formatFeedback(s.review || '')}</div></div>
+        <div class="feedback"><div class="feedback-head"><span class="ai-badge">✦</span>AI feedback</div><div class="feedback-body">${formatFeedback(s.review || '')}</div></div>
         <p style="margin-top:16px"><a class="btn ghost small" href="#/problem/${s.problemId}" onclick="document.getElementById('modal').classList.add('hidden')">Open problem</a></p>`);
     } catch (e) { toast(e.message); }
   }
