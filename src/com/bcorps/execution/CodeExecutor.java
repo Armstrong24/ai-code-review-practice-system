@@ -74,7 +74,8 @@ public class CodeExecutor {
             File parentFolder = file.getAbsoluteFile().getParentFile();
 
             ProcessBuilder processBuilder =
-                    new ProcessBuilder(tool("javac"), "-encoding", "UTF-8", file.getName());
+                    new ProcessBuilder(tool("javac"), "-J-Xmx256m", "-J-XX:+UseSerialGC",
+                            "-J-XX:TieredStopAtLevel=1", "-encoding", "UTF-8", file.getName());
             processBuilder.directory(parentFolder);
             processBuilder.redirectErrorStream(true);
 
@@ -114,7 +115,8 @@ public class CodeExecutor {
 
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(
-                    tool("java"), "-Xmx256m", "-Dfile.encoding=UTF-8", "-cp", ".", className);
+                    tool("java"), "-Xmx128m", "-XX:+UseSerialGC", "-XX:TieredStopAtLevel=1",
+                    "-Dfile.encoding=UTF-8", "-cp", ".", className);
             processBuilder.directory(new File(folderPath));
             Process process = processBuilder.start();
 
