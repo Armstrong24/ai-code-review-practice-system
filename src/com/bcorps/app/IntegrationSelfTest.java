@@ -42,7 +42,7 @@ public final class IntegrationSelfTest {
 
         // Member 2: problems loaded from the database
         List<Problem> all = app.problems().listProblems(null, null);
-        check(all.size() == 5, "M2 demo problem bank is loaded");
+        check(all.size() == com.bcorps.problems.SampleData.PROBLEM_COUNT, "M2 demo problem bank is loaded");
         Problem largest = app.problems().listProblems(Difficulty.EASY, Category.ARRAYS).get(0);
         check(app.problems().getSampleTestCases(largest.getId()).stream().allMatch(t -> t.isSample()),
                 "M2 student view shows only sample cases");
