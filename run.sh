@@ -1,7 +1,7 @@
 #!/bin/sh
-# Build and run. Usage: ./run.sh          (student app)
-#                       ./run.sh admin    (problem/test-case admin console)
-#                       ./run.sh test     (all self-tests)
+# Build and run. Usage: sh run.sh          (student app)
+#                       sh run.sh admin    (problem/test-case admin console)
+#                       sh run.sh test     (all self-tests)
 set -e
 cd "$(dirname "$0")"
 rm -rf bin && mkdir -p bin
