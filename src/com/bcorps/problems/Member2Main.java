@@ -52,7 +52,7 @@ public final class Member2Main {
                     case 6 -> addTestCase();
                     case 7 -> manageProblem();
                     case 8 -> System.out.println(SampleData.insertIfEmpty(service)
-                            ? "Inserted 5 demo problems and 24 test cases."
+                            ? "Inserted " + SampleData.PROBLEM_COUNT + " demo problems and " + SampleData.testCaseCount() + " test cases."
                             : "Skipped: the problem bank is not empty.");
                     case 9 -> exportProblems();
                     case 10 -> importProblems();
