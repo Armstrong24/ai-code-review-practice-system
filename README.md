@@ -77,8 +77,35 @@ sh run.sh test
 Run `com.bcorps.app.Main` (add `admin` or `test` as a program argument if needed).
 If Eclipse shows a JRE error, right-click the project → Properties → Java Build Path → Libraries and choose your installed JDK (17+).
 
-On first start the app adds 5 demo problems with 24 test cases, and the website adds a
+On first start the app adds 15 demo problems (5 easy, 6 medium, 4 hard) with 87 test cases,
+and the website adds a
 demo login: **demo@codereview.app / demo1234** (the "Try the demo account" button).
+If you already have a database from an older version, any missing demo problems are added
+automatically on the next start.
+
+### Demo problem bank
+
+| # | Problem | Difficulty | Category | What it practises |
+|---|---------|-----------|----------|-------------------|
+| 1 | Largest element in an array | Easy | Arrays | loops, max |
+| 2 | Palindrome string | Easy | Strings | two pointers |
+| 3 | Square of a number | Easy | Math | input/output |
+| 4 | Count vowels | Easy | Strings | characters, nextLine |
+| 5 | Sum of digits | Easy | Math | `long`, % and / |
+| 6 | Binary search | Medium | Searching | binary search |
+| 7 | Check prime number | Medium | Math | loop up to √n |
+| 8 | Second largest element | Medium | Arrays | distinct values, edge cases |
+| 9 | Sort students by marks | Medium | Sorting | `Comparator`, tie-breaking |
+| 10 | Anagram check | Medium | Strings | counting / sorting chars |
+| 11 | Maximum subarray sum | Medium | Arrays | Kadane's algorithm, overflow |
+| 12 | Longest increasing subsequence | Hard | Searching | O(n log n) with binary search |
+| 13 | Longest valid parentheses | Hard | Strings | stack |
+| 14 | Count inversions | Hard | Sorting | merge sort |
+| 15 | Shortest path in a grid | Hard | Other | breadth-first search |
+
+The large hidden tests (up to 100,000 characters or 50,000 numbers) are generated from a fixed
+seed, so they are the same every run, and their answers come from reference solutions in
+`SampleData`. Every problem was checked against an independent working solution.
 
 ## Website
 
@@ -152,7 +179,7 @@ inputs/outputs, student names and emails are never sent.
 
 `run.bat test` / `sh run.sh test` runs:
 
-- `ModuleSelfTest` – 27 checks for problems, test cases, filters, transactions, cascade delete, file export/import
+- `ModuleSelfTest` – 29 checks for problems, test cases, filters, transactions, cascade delete, file export/import
 - `ReviewSelfTest` – 8 checks for the Gemini and Groq response parsers and the fallback chain
 - `IntegrationSelfTest` – 19 end-to-end checks: register, login, submit correct / wrong / non-compiling / crashing / infinite-loop code, dashboard, leaderboard, report file
 
