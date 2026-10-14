@@ -3,5 +3,15 @@
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-17"/>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="lib" path="lib/h2-2.5.252.jar"/>
+	<classpathentry kind="lib" path="lib/jakarta.servlet-api-6.0.0.jar"/>
+	<classpathentry kind="lib" path="lib/jetty-ee10-servlet-12.1.14.jar"/>
+	<classpathentry kind="lib" path="lib/jetty-http-12.1.14.jar"/>
+	<classpathentry kind="lib" path="lib/jetty-io-12.1.14.jar"/>
+	<classpathentry kind="lib" path="lib/jetty-security-12.1.14.jar"/>
+	<classpathentry kind="lib" path="lib/jetty-server-12.1.14.jar"/>
+	<classpathentry kind="lib" path="lib/jetty-session-12.1.14.jar"/>
+	<classpathentry kind="lib" path="lib/jetty-util-12.1.14.jar"/>
+	<classpathentry kind="lib" path="lib/slf4j-api-2.0.17.jar"/>
+	<classpathentry kind="lib" path="lib/slf4j-simple-2.0.17.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
