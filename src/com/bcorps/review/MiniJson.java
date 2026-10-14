@@ -11,7 +11,7 @@ import java.util.Map;
  * indexOf-based extraction, which cut the AI's answer short whenever the text
  * contained a quote followed by a comma.
  */
-final class MiniJson {
+public final class MiniJson {
     private final String text;
     private int pos;
 
@@ -19,7 +19,7 @@ final class MiniJson {
         this.text = text;
     }
 
-    static Object parse(String json) {
+    public static Object parse(String json) {
         MiniJson parser = new MiniJson(json);
         parser.skipWhitespace();
         Object value = parser.readValue();
@@ -171,7 +171,7 @@ final class MiniJson {
     }
 
     /** Writes a Java string as a JSON string literal, escaping everything required. */
-    static String quote(String value) {
+    public static String quote(String value) {
         StringBuilder sb = new StringBuilder("\"");
         for (char c : value.toCharArray()) {
             switch (c) {
