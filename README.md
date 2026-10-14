@@ -23,7 +23,7 @@ Problem bank (Member 2) ── gives the problem + sample AND hidden test cases
    ▼
 Execution engine (Member 3) ── compile → run each test (5 s limit) → compare → score
    ▼
-AI review (Member 4) ── Gemini explains errors and suggests improvements
+AI review (Member 4) ── Groq or Gemini explains errors and suggests improvements
    ▼                     (offline rule checker if no API key / no internet)
 Progress & database (Member 5) ── saves the submission, updates dashboard + leaderboard
 ```
@@ -37,7 +37,7 @@ All modules share one H2 database file: `data/codereview.mv.db` (created on firs
 | 1 | User & Authentication, student UI | `com.bcorps.auth`, `com.bcorps.ui` | `AuthService`, `StudentRepository`, `PasswordHasher`, `AICodeReviewSystem` (Swing) |
 | 2 | Programming Problems & Test Cases | `com.bcorps.problems` | `Problem`, `TestCase`, `ProblemService`, `JdbcProblemRepository`, `ProblemFileService`, `Member2Main` |
 | 3 | Code Execution & Evaluation Engine | `com.bcorps.execution` | `CodeExecutor`, `TestCaseRunner`, `EvaluationEngine`, `EvaluationResult` |
-| 4 | AI Code Review & Feedback | `com.bcorps.review` | `CodeReviewer` (interface), `AICodeReviewer` (Gemini), `RuleBasedCodeReviewer`, `ReviewService` |
+| 4 | AI Code Review & Feedback | `com.bcorps.review` | `CodeReviewer` (interface), `GroqCodeReviewer`, `AICodeReviewer` (Gemini), `RuleBasedCodeReviewer`, `ReviewService` |
 | 5 | Progress, Database & Integration | `com.bcorps.progress`, `com.bcorps.database`, `com.bcorps.app`, `com.bcorps.web` | `SubmissionDAO`, `ProgressService`, `DashboardService`, `LeaderboardService`, `DatabaseManager`, `Platform`, `SubmissionService`, `WebServer` + servlets |
 
 ### Database tables (`DatabaseManager`)
@@ -97,7 +97,7 @@ JSON API (all under `/api`, one servlet per module):
 - `SubmissionServlet` – `POST /submissions`, `GET /submissions`, `GET /submissions/{id}`
 - `StatsServlet` – `GET /stats/dashboard`, `GET /stats/leaderboard`
 
-Website environment variables: `PORT` (default 8080), `GEMINI_API_KEY`, `ADMIN_EMAILS`
+Website environment variables: `PORT` (default 8080), `GROQ_API_KEY`, `GEMINI_API_KEY`, `ADMIN_EMAILS`
 (comma-separated; if empty every user can manage problems, fine locally), `JUDGE_THREADS`
 (programs run at once, default 2), `SECURE_COOKIES` (`true` behind HTTPS), `DEMO_ACCOUNT` (`false` to disable).
 
@@ -105,7 +105,7 @@ Website environment variables: `PORT` (default 8080), `GEMINI_API_KEY`, `ADMIN_E
 
 1. Sign in at render.com with your GitHub account.
 2. Click the **Deploy to Render** button at the top of this README (or New → Blueprint → pick this repo).
-3. When asked, fill in `ADMIN_EMAILS` with the email you'll register with, and optionally `GEMINI_API_KEY`.
+3. When asked, fill in `ADMIN_EMAILS` with the email you'll register with, and optionally `GROQ_API_KEY` and/or `GEMINI_API_KEY`.
 4. Click **Apply**. The first build takes about 5 minutes; Render then gives you a link like
    `https://ai-code-review-practice-system.onrender.com`.
 
@@ -120,13 +120,22 @@ for a class demo; a production judge would use isolated containers per submissio
 
 ## AI review setup (optional)
 
-The app works without a key, using the offline rule checker. For Gemini feedback:
+The app works without a key, using the offline rule checker. With keys, it tries
+**Groq first, then Gemini, then the offline checker** (if one fails, the next is used).
 
+**Groq (fastest):**
+1. Create a free key at console.groq.com → API Keys.
+2. Set it before starting the app:
+   - Windows: `setx GROQ_API_KEY "your-key"` (then open a new terminal)
+   - macOS/Linux: `export GROQ_API_KEY="your-key"`
+3. Optional: `GROQ_MODEL` (default `openai/gpt-oss-120b`).
+
+**Gemini:**
 1. Get a free API key from Google AI Studio.
-2. Set it as an environment variable before starting the app:
-   - Windows: `setx GEMINI_API_KEY "your-key"` (then open a new terminal)
-   - macOS/Linux: `export GEMINI_API_KEY="your-key"`
+2. Set `GEMINI_API_KEY` the same way.
 3. Optional: `GEMINI_MODEL` (default `gemini-3.5-flash-lite`).
+
+**On Render:** service → Environment → add `GROQ_API_KEY` → Save (it redeploys).
 
 **Never commit your API key.** `ModelChecker` lists the models your key can use.
 
@@ -139,7 +148,7 @@ inputs/outputs, student names and emails are never sent.
 `run.bat test` / `sh run.sh test` runs:
 
 - `ModuleSelfTest` – 27 checks for problems, test cases, filters, transactions, cascade delete, file export/import
-- `ReviewSelfTest` – 6 checks for the Gemini response parser and offline fallback
+- `ReviewSelfTest` – 8 checks for the Gemini and Groq response parsers and the fallback chain
 - `IntegrationSelfTest` – 19 end-to-end checks: register, login, submit correct / wrong / non-compiling / crashing / infinite-loop code, dashboard, leaderboard, report file
 
 ## Changes made while combining the modules
