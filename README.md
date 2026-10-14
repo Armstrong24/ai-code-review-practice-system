@@ -56,9 +56,9 @@ run.bat test      run every self-test
 
 **macOS / Linux**
 ```
-./run.sh
-./run.sh admin
-./run.sh test
+sh run.sh
+sh run.sh admin
+sh run.sh test
 ```
 
 **Eclipse:** File → Import → Existing Projects into Workspace → select this folder.
@@ -85,7 +85,7 @@ inputs/outputs, student names and emails are never sent.
 
 ## Self-tests
 
-`run.bat test` / `./run.sh test` runs:
+`run.bat test` / `sh run.sh test` runs:
 
 - `ModuleSelfTest` – 27 checks for problems, test cases, filters, transactions, cascade delete, file export/import
 - `ReviewSelfTest` – 6 checks for the Gemini response parser and offline fallback
