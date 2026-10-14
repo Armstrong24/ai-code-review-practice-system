@@ -436,7 +436,7 @@ public class Main {
       ['Member 1', 'User & Authentication', 'Registration, login with hashed passwords, sessions, student pages.', 'com.bcorps.auth · com.bcorps.ui'],
       ['Member 2', 'Problems & Test Cases', 'Problem bank, difficulty and category, sample vs hidden test cases, file import/export.', 'com.bcorps.problems'],
       ['Member 3', 'Code Execution Engine', 'Compiles and runs code in a separate process with a time limit, compares output, scores it.', 'com.bcorps.execution'],
-      ['Member 4', 'AI Code Review', 'Gemini explains errors and suggests improvements; offline rule checker as a fallback.', 'com.bcorps.review'],
+      ['Member 4', 'AI Code Review', 'Groq or Gemini AI explains errors and suggests improvements; offline rule checker as a fallback.', 'com.bcorps.review'],
       ['Member 5', 'Progress & Database', 'H2 database, submissions, dashboard, difficulty stats, leaderboard, web integration.', 'com.bcorps.progress · com.bcorps.web'],
     ];
     view.innerHTML = `
@@ -453,7 +453,7 @@ public class Main {
         <thead><tr><th>Member</th><th>Module</th><th>What it does</th><th>Package</th></tr></thead>
         <tbody>${modules.map((m) => `<tr><td><strong>${m[0]}</strong></td><td>${m[1]}</td><td>${m[2]}</td><td><code>${m[3]}</code></td></tr>`).join('')}</tbody></table></div>
       <div class="card pad" style="margin-top:18px"><h3>Built with</h3>
-        <p style="margin:0">Java 17+, Jakarta Servlets on embedded Jetty, JDBC with an H2 database, ProcessBuilder and multithreading for code execution, the Google Gemini API for review, and plain HTML/CSS/JavaScript for this interface.</p></div>`;
+        <p style="margin:0">Java 17+, Jakarta Servlets on embedded Jetty, JDBC with an H2 database, ProcessBuilder and multithreading for code execution, the Groq and Google Gemini APIs for review, and plain HTML/CSS/JavaScript for this interface.</p></div>`;
   }
 
   // ---------------------------------------------------------------- start
