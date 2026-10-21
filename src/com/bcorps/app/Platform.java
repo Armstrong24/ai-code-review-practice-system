@@ -4,6 +4,8 @@ import com.bcorps.auth.AuthService;
 import com.bcorps.auth.StudentRepository;
 import com.bcorps.database.DatabaseManager;
 import com.bcorps.execution.EvaluationEngine;
+import com.bcorps.learning.ExamRepository;
+import com.bcorps.learning.ExamService;
 import com.bcorps.problems.JdbcProblemRepository;
 import com.bcorps.problems.ProblemService;
 import com.bcorps.problems.SampleData;
@@ -27,6 +29,7 @@ import java.sql.SQLException;
  *   Member 3 engine runs Member 2's test cases
  *   Member 4 review explains the result
  *   Member 5 stores the submission and computes progress / leaderboard
+ *   Learn & Exams: MCQ exams in many languages, Olympiad round, notes + videos
  */
 public final class Platform {
     private final DatabaseManager database;
@@ -40,6 +43,7 @@ public final class Platform {
     private final LeaderboardService leaderboard;
     private final FileStorageService fileStorage;
     private final SubmissionService submissionService;
+    private final ExamService exams;
 
     private Platform(DatabaseManager database, ReviewService reviewService) throws SQLException {
         this.database = database;
@@ -56,6 +60,8 @@ public final class Platform {
         this.submissionService = new SubmissionService(problems, new EvaluationEngine(),
                 reviewService, submissions);
         SampleData.insertMissing(problems);
+        this.exams = new ExamService(new ExamRepository(database));
+        exams.seedQuestions();
     }
 
     /** The real app: a file database in ./data/codereview.mv.db. */
@@ -80,4 +86,5 @@ public final class Platform {
     public LeaderboardService leaderboard() { return leaderboard; }
     public FileStorageService fileStorage() { return fileStorage; }
     public SubmissionService submissionService() { return submissionService; }
+    public ExamService exams() { return exams; }
 }
