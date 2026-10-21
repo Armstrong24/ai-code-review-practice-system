@@ -212,25 +212,42 @@ public class Main {
     leaderboard: renderLeaderboard,
     manage: renderManage,
     about: renderAbout,
+    exams: renderExams,
+    exam: renderExam,
+    olympiad: renderOlympiad,
+    notes: renderNotes,
   };
 
   function route() {
     if (!state.me) return;
     const [name, id] = location.hash.replace(/^#\//, '').split('/');
     const page = routes[name] ? name : 'dashboard';
-    $$('[data-nav]').forEach((a) => a.classList.toggle('active',
-      a.dataset.nav === page || (page === 'problem' && a.dataset.nav === 'problems')));
+    const navFor = { problem: 'problems', exam: id && id.toUpperCase() === 'OLYMPIAD' ? 'olympiad' : 'exams' };
+    $$('[data-nav]').forEach((a) => a.classList.toggle('active', a.dataset.nav === (navFor[page] || page)));
+    stopExamTimer();
     state.editor = null;
     view.innerHTML = '<div class="empty">Loading…</div>';
     const token = ++state.route;
     routes[page](id, token).catch((e) => { if (!stale(token)) view.innerHTML = `<div class="card pad empty">${esc(e.message)}</div>`; });
     window.scrollTo(0, 0);
   }
-  window.addEventListener('hashchange', route);
+  window.addEventListener('hashchange', () => {
+    if (state.exam && !state.exam.done && !location.hash.startsWith('#/exam/')) {
+      if (!confirm('Leave the exam? Your answers will be lost.')) {
+        history.replaceState(null, '', `#/exam/${state.exam.track}`);
+        return;
+      }
+      state.exam = null;
+    }
+    route();
+  });
+  window.addEventListener('beforeunload', (e) => {
+    if (state.exam && !state.exam.done) { e.preventDefault(); e.returnValue = ''; }
+  });
 
   // ---------------------------------------------------------------- dashboard (Member 5)
   async function renderDashboard(_, token) {
-    const [d, recent] = await Promise.all([api('/stats/dashboard'), api('/submissions')]);
+    const [d, recent, tracks] = await Promise.all([api('/stats/dashboard'), api('/submissions'), api('/learn/tracks')]);
     if (stale(token)) return;
     const solvedPct = d.totalProblems ? (d.solved / d.totalProblems) * 100 : 0;
     view.innerHTML = `
@@ -265,6 +282,13 @@ public class Main {
               <small>${r.solved}/${r.attempts} passed · ${pct(r.averageScore)}</small></div>`).join('')}
           <p style="margin:18px 0 0"><small>Bars show your average score at each level.</small></p>
         </div>
+      </div>
+      <div class="card pad" style="margin-top:18px">
+        <div class="card-head"><h3>Language exams & Olympiad</h3><a class="btn ghost small" href="#/exams">All exams →</a></div>
+        <div class="track-strip">${tracks.map((t) => `
+          <a class="track-mini" href="${t.kind === 'OLYMPIAD' ? '#/olympiad' : '#/exams/' + t.id}">
+            ${langBadge(t.id)}<div><strong>${esc(t.name)}</strong>
+            <small>${t.bestScore == null ? 'Not taken yet' : 'Best ' + pct(t.bestScore)}</small></div></a>`).join('')}</div>
       </div>`;
     $$('[data-sub]', view).forEach((row) => row.addEventListener('click', () => openSubmission(row.dataset.sub)));
   }
@@ -497,6 +521,256 @@ public class Main {
     }));
   }
 
+
+  // ---------------------------------------------------------------- Learn & Exams
+  const LANGS = {
+    JAVA: ['Java', 'Jv', '#f89820'], PYTHON: ['Python', 'Py', '#3776ab'], C: ['C', 'C', '#5c6bc0'],
+    CPP: ['C++', 'C++', '#00599c'], JAVASCRIPT: ['JavaScript', 'JS', '#d4b106'], SQL: ['SQL', 'SQL', '#e38c00'],
+    OLYMPIAD: ['Olympiad', '🏆', '#8b5cf6'],
+  };
+  const langBadge = (id, big) => {
+    const l = LANGS[id] || [id, id, '#64748b'];
+    return `<span class="lang-badge${big ? ' big' : ''}" style="--lc:${l[2]}">${esc(l[1])}</span>`;
+  };
+  const mmss = (sec) => `${Math.floor(sec / 60)}:${String(Math.max(0, sec) % 60).padStart(2, '0')}`;
+  const LETTERS = ['A', 'B', 'C', 'D'];
+
+  function stopExamTimer() {
+    if (state.exam && state.exam.timer) { clearInterval(state.exam.timer); state.exam.timer = null; }
+  }
+
+  // Exams home: a language picker at the top, then details for the chosen language.
+  async function renderExams(id, token) {
+    const [tracks, attempts] = await Promise.all([api('/learn/tracks'), api('/learn/attempts')]);
+    if (stale(token)) return;
+    const langs = tracks.filter((t) => t.kind === 'LANGUAGE');
+    const chosen = langs.find((t) => t.id === String(id || '').toUpperCase()) || langs[0];
+    view.innerHTML = `
+      <div class="page-head">
+        <div><h2>Language exams</h2><p>Timed multiple-choice exams in ${langs.length} languages. Score 80% or more to pass.</p></div>
+        <label class="lang-select">Language
+          <select id="lang-pick">${langs.map((t) => `<option value="${t.id}" ${t.id === chosen.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select>
+        </label>
+      </div>
+      <div class="lang-tabs">${langs.map((t) => `
+        <a href="#/exams/${t.id}" class="${t.id === chosen.id ? 'active' : ''}">${langBadge(t.id)}${esc(t.name)}
+          ${t.passed ? '<span class="tick">✓</span>' : ''}</a>`).join('')}</div>
+      <div class="grid two" style="margin-top:18px">
+        <div class="card pad exam-intro">
+          <div class="exam-intro-head">${langBadge(chosen.id, true)}<div><h3>${esc(chosen.name)} exam</h3><small>${esc(chosen.tagline)}</small></div></div>
+          <div class="facts">
+            <div><strong>${chosen.questions}</strong><small>questions</small></div>
+            <div><strong>${chosen.minutes}</strong><small>minutes</small></div>
+            <div><strong>${chosen.bestScore == null ? '—' : pct(chosen.bestScore)}</strong><small>your best</small></div>
+            <div><strong>${chosen.attempts}</strong><small>attempts</small></div>
+          </div>
+          <ul class="rules">
+            <li>Questions come in a random order every attempt.</li>
+            <li>Unanswered questions count as wrong. The exam submits itself when time runs out.</li>
+            <li>After submitting you see every correct answer with an explanation.</li>
+          </ul>
+          <div class="btn-row"><a class="btn primary" href="#/exam/${chosen.id}">Start ${esc(chosen.name)} exam →</a>
+            <a class="btn ghost" href="#/notes/${chosen.id}">Revise notes & videos</a></div>
+        </div>
+        <div class="card"><div class="pad-head"><h3>My exam history</h3></div>
+          ${attempts.length ? `<table><thead><tr><th>Exam</th><th>Score</th><th>Time</th><th>Taken</th></tr></thead><tbody>
+            ${attempts.slice(0, 8).map((a) => `<tr><td>${langBadge(a.track)} <strong>${esc(a.name)}</strong></td>
+              <td>${pill(pct(a.score), a.passed ? 'PASSED' : 'FAILED')} <small>${a.correct}/${a.total}</small></td>
+              <td><small>${mmss(a.timeTaken)}</small></td><td><small>${when(a.submittedAt)}</small></td></tr>`).join('')}</tbody></table>`
+            : '<div class="empty">No exams yet. Pick a language and start one.</div>'}
+        </div>
+      </div>`;
+    $('#lang-pick').addEventListener('change', (e) => { location.hash = `#/exams/${e.target.value}`; });
+  }
+
+  // Taking an exam: one question at a time, a palette to jump around, and a timer.
+  async function renderExam(id, token) {
+    const track = String(id || '').toUpperCase();
+    if (state.exam && state.exam.track === track && !state.exam.done) {
+      drawExam();
+      return;
+    }
+    const data = await api(`/learn/exam/${encodeURIComponent(track)}/start`, { method: 'POST', body: {} });
+    if (stale(token)) return;
+    state.exam = {
+      track: data.track, name: data.name, questions: data.questions, answers: {}, current: 0,
+      deadline: Date.now() + data.secondsLeft * 1000, timer: null, done: false,
+    };
+    drawExam();
+  }
+
+  function drawExam() {
+    const ex = state.exam;
+    view.innerHTML = `
+      <div class="page-head">
+        <div><a href="${ex.track === 'OLYMPIAD' ? '#/olympiad' : '#/exams/' + ex.track}"><small>← Back</small></a>
+          <h2>${langBadge(ex.track)} ${esc(ex.name)} ${ex.track === 'OLYMPIAD' ? 'round' : 'exam'}</h2>
+          <p>${ex.questions.length} questions · pick one answer for each</p></div>
+        <div class="timer" id="timer">--:--</div>
+      </div>
+      <div class="exam">
+        <div class="card pad question-card" id="question"></div>
+        <aside class="card pad palette-card">
+          <h3>Questions</h3>
+          <div class="palette" id="palette"></div>
+          <p><small id="answered"></small></p>
+          <button class="btn primary block" id="finish">Submit exam</button>
+        </aside>
+      </div>`;
+    const tick = () => {
+      const left = Math.round((ex.deadline - Date.now()) / 1000);
+      const t = $('#timer');
+      if (!t) return;
+      t.textContent = mmss(Math.max(0, left));
+      t.classList.toggle('low', left <= 60);
+      if (left <= 0) { stopExamTimer(); toast('Time is up. Submitting your answers.'); finishExam(); }
+    };
+    stopExamTimer();
+    ex.timer = setInterval(tick, 1000);
+    tick();
+    $('#finish').addEventListener('click', () => {
+      const missing = ex.questions.length - Object.keys(ex.answers).length;
+      if (missing > 0 && !confirm(`${missing} question${missing > 1 ? 's are' : ' is'} unanswered. Submit anyway?`)) return;
+      finishExam();
+    });
+    drawQuestion();
+  }
+
+  function drawQuestion() {
+    const ex = state.exam;
+    if (!ex || ex.done || !$('#question')) return;
+    ex.current = Math.max(0, Math.min(ex.current, ex.questions.length - 1));
+    const q = ex.questions[ex.current];
+    $('#question').innerHTML = `
+      <div class="q-meta"><span>Question ${ex.current + 1} of ${ex.questions.length}</span>${pill(title(q.difficulty), q.difficulty)}</div>
+      <h3 class="q-text">${esc(q.question)}</h3>
+      ${q.code ? `<pre class="q-code">${esc(q.code)}</pre>` : ''}
+      <div class="options">${q.options.map((o, i) => `
+        <button type="button" class="option ${ex.answers[q.id] === i ? 'chosen' : ''}" data-opt="${i}">
+          <b>${LETTERS[i]}</b><span>${esc(o)}</span></button>`).join('')}</div>
+      <div class="q-nav">
+        <button class="btn ghost" id="prev" ${ex.current === 0 ? 'disabled' : ''}>← Previous</button>
+        ${ex.answers[q.id] !== undefined ? '<button class="btn ghost" id="clear">Clear answer</button>' : '<span></span>'}
+        <button class="btn ${ex.current === ex.questions.length - 1 ? 'ghost' : 'primary'}" id="next" ${ex.current === ex.questions.length - 1 ? 'disabled' : ''}>Next →</button>
+      </div>`;
+    $$('[data-opt]', view).forEach((b) => b.addEventListener('click', () => {
+      ex.answers[q.id] = Number(b.dataset.opt);
+      const at = ex.current;
+      drawQuestion();
+      // Move to the next question after a short pause, unless the student already moved.
+      setTimeout(() => {
+        if (state.exam === ex && !ex.done && ex.current === at && at < ex.questions.length - 1 && $('#question')) {
+          ex.current = at + 1;
+          drawQuestion();
+        }
+      }, 220);
+    }));
+    $('#prev').addEventListener('click', () => { ex.current--; drawQuestion(); });
+    $('#next').addEventListener('click', () => { ex.current++; drawQuestion(); });
+    if ($('#clear')) $('#clear').addEventListener('click', () => { delete ex.answers[q.id]; drawQuestion(); });
+    $('#palette').innerHTML = ex.questions.map((qq, i) => `<button class="${ex.answers[qq.id] !== undefined ? 'done' : ''} ${i === ex.current ? 'here' : ''}" data-go="${i}">${i + 1}</button>`).join('');
+    $$('[data-go]', view).forEach((b) => b.addEventListener('click', () => { ex.current = Number(b.dataset.go); drawQuestion(); }));
+    $('#answered').textContent = `${Object.keys(ex.answers).length} of ${ex.questions.length} answered`;
+  }
+
+  async function finishExam() {
+    const ex = state.exam;
+    if (!ex || ex.done || ex.submitting) return;
+    ex.submitting = true;
+    stopExamTimer();
+    const button = $('#finish');
+    if (button) { button.disabled = true; button.innerHTML = '<span class="spinner"></span> Checking…'; }
+    try {
+      const r = await api(`/learn/exam/${ex.track}/submit`, { method: 'POST', body: { answers: ex.answers } });
+      ex.done = true;
+      drawExamResult(r);
+    } catch (e) {
+      ex.submitting = false;
+      ex.done = true;
+      view.innerHTML = `<div class="card pad empty">${esc(e.message)}<p><a class="btn primary" href="#/exams/${ex.track}">Back to exams</a></p></div>`;
+    }
+  }
+
+  function drawExamResult(r) {
+    const kind = r.passed ? 'ok' : r.score >= 50 ? 'bad' : 'err';
+    const back = r.track === 'OLYMPIAD' ? '#/olympiad' : `#/exams/${r.track}`;
+    view.innerHTML = `
+      <div class="page-head"><div><a href="${back}"><small>← Back</small></a><h2>${langBadge(r.track)} ${esc(r.name)} result</h2></div>
+        <div class="btn-row"><a class="btn ghost" href="#/notes/${r.track}">Revise notes & videos</a>
+          <button class="btn primary" id="retake">Take it again</button></div></div>
+      <div class="card result" style="margin-top:0">
+        <div class="verdict ${kind}"><div><h3>${r.passed ? 'Passed! Well done' : r.score >= 50 ? 'Nearly there' : 'Keep practising'}</h3>
+          <small>${r.correct} of ${r.total} correct · ${mmss(r.timeTaken)} taken · pass mark 80%</small></div>
+          <div class="score">${pct(r.score)}</div></div>
+        <div class="result-body">${r.answers.map((a, i) => `
+          <div class="review ${a.isCorrect ? 'right' : 'wrong'}">
+            <div class="q-meta"><span>${i + 1}. ${a.isCorrect ? '✓ Correct' : a.chosen == null ? '— Not answered' : '✗ Wrong'}</span>${pill(title(a.difficulty), a.difficulty)}</div>
+            <strong>${esc(a.question)}</strong>
+            ${a.code ? `<pre class="q-code">${esc(a.code)}</pre>` : ''}
+            <div class="review-opts">${a.options.map((o, j) => `<span class="${j === a.correct ? 'is-correct' : j === a.chosen ? 'is-chosen' : ''}"><b>${LETTERS[j]}</b> ${esc(o)}</span>`).join('')}</div>
+            <p class="why">💡 ${esc(a.explanation)}</p>
+          </div>`).join('')}</div>
+      </div>`;
+    $('#retake').addEventListener('click', () => {
+      state.exam = null;
+      if (location.hash === `#/exam/${r.track}`) route(); else location.hash = `#/exam/${r.track}`;
+    });
+  }
+
+  // Olympiad: the reasoning round, its leaderboard and the hard coding problems.
+  async function renderOlympiad(_, token) {
+    const [tracks, board, hard] = await Promise.all([
+      api('/learn/tracks'), api('/learn/leaderboard/OLYMPIAD'), api('/problems?difficulty=HARD')]);
+    if (stale(token)) return;
+    const o = tracks.find((t) => t.id === 'OLYMPIAD');
+    const medal = (n) => ({ 1: '🥇', 2: '🥈', 3: '🥉' }[n] || n);
+    view.innerHTML = `
+      <div class="page-head"><div><h2>Olympiad</h2><p>Practice in the style of the Indian Computing Olympiad (ZIO / ZCO): logic, maths and algorithms.</p></div></div>
+      <div class="olympiad-hero card pad">
+        <div><span class="eyebrow">Round 1 · Reasoning</span><h3>${o.questions} questions in ${o.minutes} minutes</h3>
+          <p>Counting, number theory, recursion, stacks and queues, graphs. No coding needed, like ZIO.</p>
+          <div class="btn-row"><a class="btn primary" href="#/exam/OLYMPIAD">Start Olympiad round →</a>
+            <a class="btn ghost" href="#/notes/OLYMPIAD">Olympiad notes & guide</a></div></div>
+        <div class="hero-stat"><strong>${o.bestScore == null ? '—' : pct(o.bestScore)}</strong><small>your best score</small></div>
+      </div>
+      <div class="grid two" style="margin-top:18px">
+        <div class="card"><div class="pad-head"><h3>Round 2 · Coding (like ZCO)</h3><small>Hard problems, graded on hidden tests</small></div>
+          ${hard.length ? `<table><tbody>${hard.map((p) => `<tr class="clickable" data-id="${p.id}">
+            <td><strong>${esc(p.title)}</strong><br><small>${esc(title(p.category))}</small></td>
+            <td>${pill(title(p.status), p.status)}</td><td style="text-align:right">${p.bestScore == null ? '—' : pct(p.bestScore)}</td></tr>`).join('')}</tbody></table>`
+            : '<div class="empty">No hard problems yet.</div>'}</div>
+        <div class="card"><div class="pad-head"><h3>Olympiad leaderboard</h3><small>Best score, then fastest time</small></div>
+          ${board.length ? `<table><tbody>${board.map((r) => `<tr class="${r.me ? 'me-row' : ''}"><td style="width:56px;font-size:18px">${medal(r.rank)}</td>
+            <td><strong>${esc(r.name)}</strong>${r.me ? ' <small>(you)</small>' : ''}</td><td><small>${mmss(r.timeTaken)}</small></td>
+            <td style="text-align:right"><strong>${pct(r.score)}</strong></td></tr>`).join('')}</tbody></table>`
+            : '<div class="empty">No one has taken the Olympiad round yet. Be the first!</div>'}</div>
+      </div>`;
+    $$('[data-id]', view).forEach((r) => r.addEventListener('click', () => { location.hash = `#/problem/${r.dataset.id}`; }));
+  }
+
+  // Notes: short revision notes plus one-shot YouTube videos for each language.
+  async function renderNotes(id, token) {
+    const track = String(id || 'JAVA').toUpperCase();
+    const n = await api(`/learn/notes/${encodeURIComponent(track)}`);
+    if (stale(token)) return;
+    view.innerHTML = `
+      <div class="page-head"><div><h2>Notes & videos</h2><p>Quick revision notes and one-shot videos for every language.</p></div>
+        <a class="btn primary" href="#/exam/${n.track}">Take the ${esc(n.name)} ${n.track === 'OLYMPIAD' ? 'round' : 'exam'} →</a></div>
+      <div class="lang-tabs">${Object.keys(LANGS).map((k) => `<a href="#/notes/${k}" class="${k === n.track ? 'active' : ''}">${langBadge(k)}${esc(LANGS[k][0])}</a>`).join('')}</div>
+      <p class="overview">${esc(n.overview)}</p>
+      <h3 class="section-title">▶ One-shot videos for quick revision</h3>
+      <div class="video-grid">${n.videos.map((v) => `
+        <a class="card video-card" href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">
+          <div class="thumb"><img src="https://i.ytimg.com/vi/${esc(v.youtubeId)}/hqdefault.jpg" alt="" loading="lazy"><span class="play">▶</span>
+            <span class="dur">${esc(v.duration)}</span></div>
+          <div class="video-info"><strong>${esc(v.title)}</strong><small>${esc(v.channel)} · ${esc(v.language)}</small></div></a>`).join('')}</div>
+      <h3 class="section-title">📝 Notes</h3>
+      <div class="notes-grid">${n.sections.map((s) => `
+        <div class="card pad note"><h3>${esc(s.title)}</h3><div class="feedback-body">${formatFeedback(s.markdown)}</div></div>`).join('')}</div>
+      ${n.links.length ? `<div class="card pad" style="margin-top:18px"><h3>Further reading</h3>
+        ${n.links.map((l) => `<p style="margin:6px 0"><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)} ↗</a></p>`).join('')}</div>` : ''}`;
+  }
+
   // ---------------------------------------------------------------- about
   async function renderAbout() {
     const modules = [
@@ -505,6 +779,7 @@ public class Main {
       ['Member 3', 'Code Execution Engine', 'Compiles and runs code in a separate process with a time limit, compares output, scores it.', 'com.bcorps.execution'],
       ['Member 4', 'AI Code Review', 'Groq or Gemini AI explains errors and suggests improvements; offline rule checker as a fallback.', 'com.bcorps.review'],
       ['Member 5', 'Progress & Database', 'H2 database, submissions, dashboard, difficulty stats, leaderboard, web integration.', 'com.bcorps.progress · com.bcorps.web'],
+      ['Team', 'Learn & Exams', 'MCQ exams in Java, Python, C, C++, JavaScript and SQL, an Olympiad round, revision notes and one-shot videos.', 'com.bcorps.learning'],
     ];
     view.innerHTML = `
       <div class="page-head"><div><h2>About the project</h2><p>AI-Powered Code Review & Programming Practice System · Java group project</p></div></div>
