@@ -2,7 +2,9 @@
 
 A Java platform where students register, solve programming problems in Java,
 get their code compiled and graded against hidden test cases, and receive AI feedback
-on their code. Progress, scores and a leaderboard are stored in an H2 database.
+on their code. Beyond Java, students can take **timed MCQ exams in Java, Python, C, C++,
+JavaScript and SQL**, practise an **Olympiad round** (ZIO / ZCO style), and revise with
+**notes and one-shot YouTube videos**. Progress, scores and leaderboards are stored in an H2 database.
 
 **🌐 Live demo: https://ai-code-review-practice-system.onrender.com**
 (demo login `demo@codereview.app` / `demo1234`; free hosting, so the first visit may take about a minute to wake up)
@@ -29,6 +31,10 @@ Execution engine (Member 3) ── compile → run each test (5 s limit) → com
 AI review (Member 4) ── Groq or Gemini explains errors and suggests improvements
    ▼                     (offline rule checker if no API key / no internet)
 Progress & database (Member 5) ── saves the submission, updates dashboard + leaderboard
+
+Learn & Exams (com.bcorps.learning)
+   language picker → timed MCQ exam (20 questions) → graded on the server → explanations
+   Olympiad round + hard coding problems · notes + one-shot videos for every language
 ```
 
 All modules share one H2 database file: `data/codereview.mv.db` (created on first run).
@@ -42,6 +48,7 @@ All modules share one H2 database file: `data/codereview.mv.db` (created on firs
 | 3 | Code Execution & Evaluation Engine | `com.bcorps.execution` | `CodeExecutor`, `TestCaseRunner`, `EvaluationEngine`, `EvaluationResult` |
 | 4 | AI Code Review & Feedback | `com.bcorps.review` | `CodeReviewer` (interface), `GroqCodeReviewer`, `AICodeReviewer` (Gemini), `RuleBasedCodeReviewer`, `ReviewService` |
 | 5 | Progress, Database & Integration | `com.bcorps.progress`, `com.bcorps.database`, `com.bcorps.app`, `com.bcorps.web` | `SubmissionDAO`, `ProgressService`, `DashboardService`, `LeaderboardService`, `DatabaseManager`, `Platform`, `SubmissionService`, `WebServer` + servlets |
+| Team | Learn & Exams (multi-language exams, Olympiad, notes) | `com.bcorps.learning` | `Track`, `McqQuestion`, `QuestionBank`, `ExamRepository`, `ExamService`, `TutorialData`, `LearnServlet` |
 
 ### Database tables (`DatabaseManager`)
 
@@ -49,6 +56,8 @@ All modules share one H2 database file: `data/codereview.mv.db` (created on firs
 - `problems` – id, title, description, input_format, output_format, constraints_text, difficulty (EASY/MEDIUM/HARD), category
 - `test_cases` – id, problem_id → problems, input_data, expected_output, is_sample
 - `submissions` – id, student_id → students, problem_id → problems, source_code, status, score, passed_tests, total_tests, execution_time_ms, ai_review, submitted_at
+- `exam_questions` – id, track (JAVA/PYTHON/C/CPP/JAVASCRIPT/SQL/OLYMPIAD), difficulty, question, code_snippet, option_a–d, correct_option (0–3), explanation
+- `exam_attempts` – id, student_id → students, track, correct, total, score, time_taken_sec, submitted_at
 
 ## Requirements
 
@@ -107,6 +116,22 @@ The large hidden tests (up to 100,000 characters or 50,000 numbers) are generate
 seed, so they are the same every run, and their answers come from reference solutions in
 `SampleData`. Every problem was checked against an independent working solution.
 
+## Learn & Exams
+
+| Feature | What it does |
+|---|---|
+| **Language exams** | Pick a language at the top (Java, Python, C, C++, JavaScript, SQL). Each exam is 20 MCQs in random order with a 20-minute timer and a question palette. 80% passes. After submitting you see every answer with an explanation. |
+| **Olympiad** | A 20-question, 30-minute reasoning round in the style of the Indian Computing Olympiad (ZIO): counting, number theory, recursion, stacks/queues, graphs. Round 2 links to the hard coding problems (like ZCO). Own leaderboard (best score, then fastest time). |
+| **Notes & videos** | Short revision notes for every language (with code and tables) plus one-shot full-course YouTube videos in Hindi and English for a quick revision. |
+
+The demo bank has **140 questions** (20 per language + 20 Olympiad), added to the database on first start;
+missing ones are added automatically to older databases. Exams are graded **on the server**: the browser
+never receives the correct answers before submitting, the chosen questions and start time are kept in the
+server session, and answers sent after the time limit are refused.
+
+To add more questions, add `q(...)` lines in `QuestionBank.java` (track, difficulty, question, optional code,
+index of the right option, explanation, four options) and restart.
+
 ## Website
 
 | Page | Module | What it shows |
@@ -118,6 +143,9 @@ seed, so they are the same every run, and their answers come from reference solu
 | Submissions | 5 | History; click one to see the code and feedback |
 | Leaderboard | 5 | Ranking by best score per problem |
 | Manage problems | 2 | Admins add problems with sample/hidden test cases, or delete them |
+| Language exams | Learn | Language picker, timed MCQ exam, results with explanations, exam history |
+| Olympiad | Learn | Reasoning round, hard coding problems, Olympiad leaderboard |
+| Notes & videos | Learn | Revision notes and one-shot YouTube videos for every language |
 | About the project | all | How the five modules connect |
 
 JSON API (all under `/api`, one servlet per module):
@@ -126,6 +154,7 @@ JSON API (all under `/api`, one servlet per module):
 - `ProblemServlet` – `GET /problems`, `GET /problems/{id}` (sample cases only), `POST /problems`, `DELETE /problems/{id}`
 - `SubmissionServlet` – `POST /submissions`, `GET /submissions`, `GET /submissions/{id}`
 - `StatsServlet` – `GET /stats/dashboard`, `GET /stats/leaderboard`
+- `LearnServlet` – `GET /learn/tracks`, `GET /learn/notes/{track}`, `POST /learn/exam/{track}/start`, `POST /learn/exam/{track}/submit`, `GET /learn/attempts`, `GET /learn/leaderboard/{track}`
 
 Website environment variables: `PORT` (default 8080), `GROQ_API_KEY`, `GEMINI_API_KEY`, `ADMIN_EMAILS`
 (comma-separated; if empty every user can manage problems, fine locally), `JUDGE_THREADS`
@@ -182,6 +211,7 @@ inputs/outputs, student names and emails are never sent.
 - `ModuleSelfTest` – 29 checks for problems, test cases, filters, transactions, cascade delete, file export/import
 - `ReviewSelfTest` – 8 checks for the Gemini and Groq response parsers and the fallback chain
 - `IntegrationSelfTest` – 19 end-to-end checks: register, login, submit correct / wrong / non-compiling / crashing / infinite-loop code, dashboard, leaderboard, report file
+- `LearningSelfTest` – 25 checks: question bank quality, notes and video ids, seeding without duplicates, exam grading, unanswered questions, time limit, history, best score, leaderboard
 
 ## Changes made while combining the modules
 
@@ -194,4 +224,5 @@ inputs/outputs, student names and emails are never sent.
 - **Leaderboard (Member 5):** ranks by best score per problem, so resubmitting the same problem cannot inflate rank. Current level now needs both a good average and enough problems solved.
 - **File handling (Member 2):** export/import the whole problem bank to a `.properties` file (admin menu options 9 and 10).
 - **Website (new):** servlets for every module, a browser UI, and Docker/Render files for a live link.
+- **Learn & Exams (new, from team feedback):** multi-language MCQ exams with a language picker, an Olympiad round, revision notes and one-shot YouTube videos.
 - **Package names:** everything moved under `com.bcorps.*` (Member 4's and Member 5's `com.codereview` packages collided).
