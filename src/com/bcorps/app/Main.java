@@ -25,6 +25,7 @@ public final class Main {
                 com.bcorps.problems.ModuleSelfTest.main(new String[0]);
                 com.bcorps.review.ReviewSelfTest.main(new String[0]);
                 IntegrationSelfTest.main(new String[0]);
+                com.bcorps.learning.LearningSelfTest.main(new String[0]);
             }
             case "app" -> {
                 if (GraphicsEnvironment.isHeadless()) {
