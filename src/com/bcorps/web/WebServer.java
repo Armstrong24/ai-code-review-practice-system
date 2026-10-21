@@ -57,6 +57,7 @@ public final class WebServer {
         context.addServlet(new ServletHolder(new ProblemServlet(platform, admins)), "/api/problems/*");
         context.addServlet(new ServletHolder(new SubmissionServlet(platform, admins)), "/api/submissions/*");
         context.addServlet(new ServletHolder(new StatsServlet(platform, admins)), "/api/stats/*");
+        context.addServlet(new ServletHolder(new LearnServlet(platform, admins)), "/api/learn/*");
 
         ServletHolder files = new ServletHolder("static", DefaultServlet.class);
         files.setInitParameter("dirAllowed", "false");
